@@ -1,40 +1,58 @@
 const axios = require('axios')
 const cheerio = require('cheerio')
+const readline = require("readline");
 
-	process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0
-    const url = 'https://localhost/contribution/2020/Eyewear/03-us-optical-launch//index.html'
+process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0
+let url = ''
 
-    axios(url)
-      .then(response => {
-		const html = response.data
-		const $ = cheerio.load(html)
-	
-		const getChildId = (node, tabSize) => {
-			console.log(tabSize);
-			const tab = '	'.repeat(tabSize);
-			console.log(`#${node.attr('id')}`)
-			const children = node.children('.fs-fluidcomponent')
-			console.log(children.length);
-			children.each(function (i, el) {
-				tabSize += 1
-				getChildId($(el), tabSize)
+const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+});
+
+rl.question('Entrez l\'url que vous voulez traiter\n', function(url) {
+	url = `${url}`
+
+	axios
+		.get(url)
+		.then(response => {
+			const html = response.data
+			const $ = cheerio.load(html)
+
+			const getChildId = node => {
+				const tabLength = '	'.repeat($(node).parents('.fs-fluidcomponent').length)
+				console.log(`${tabLength}#${node.attr('id')}`)
+				let children = null
+				node.hasClass('fs-grid-placeholder') ? children = node.children('.fs-grid-placeholder__container').children('.fs-fluidcomponent') : children = node.children('.fs-fluidcomponent')
+				children.each(function (i, el) {
+					getChildId($(el))
+				})
+			}
+
+			const components = $('.fs-fluidcomponent')
+			console.log('FS TEMPLATE COMPONENTS');
+			components.each(function (i, el) {
+				if ($(el).parent().hasClass('fs-template')) {
+					getChildId($(el))
+				}
 			})
-			tabSize = 1
-		}
 
-		const components = $('.fs-fluidcomponent')
-		getChildId(components, 0)
-		// console.log(components.children('.fs-fluidcomponent').first().attr('id'))
-		
-		// components.each(function () {
-		// 	const id = $(this).attr('id');
-		// 	console.log(`#${id}\n`)
-		// });
-      })
-	  .catch(console.error)
+			if (process.argv[2] === '--grid') {
+				console.log('FS GRID DESKTOP COMPONENTS');
+				const gridComponents = $('.fs-grid-placeholder')
+				gridComponents.each(function (i, el) {
+					if ($(el).parent().hasClass('fs-grid')) {
+						getChildId($(el))
+					}
+				})
+			}
+			console.log('Appuyez sur ctrl+c pour quitter')
+		})
+		.catch(console.error)
+	
+});
 
-/**
- * 1/ add mobile version with new axios request using mobile user agent
- * 2/ compare desktop and mobile
- * 3/ indent correctly
- */
+rl.on("close", function() {
+    console.log("\nBYE BYE !!!");
+    process.exit(0);
+});
